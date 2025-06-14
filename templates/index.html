@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Recognition System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #0d1117;
+            color: #c9d1d9;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        .navbar {
+            background-color: #161b22;
+            border-bottom: 1px solid #30363d;
+            padding: 1rem 0;
+        }
+        .navbar-brand {
+            color: #58a6ff !important;
+            font-weight: 600;
+            font-size: 1.5rem;
+        }
+        .nav-link {
+            color: #c9d1d9 !important;
+            margin: 0 0.5rem;
+            transition: color 0.2s;
+        }
+        .nav-link:hover {
+            color: #58a6ff !important;
+        }
+        .main-container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        .video-section {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 10px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        .video-wrapper {
+            position: relative;
+            background-color: #0d1117;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+        }
+        #video-feed {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        .control-section {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 10px;
+            padding: 2rem;
+        }
+        .btn-primary {
+            background-color: #238636;
+            border-color: #238636;
+            font-weight: 500;
+        }
+        .btn-primary:hover {
+            background-color: #2ea043;
+            border-color: #2ea043;
+        }
+        .btn-secondary {
+            background-color: #21262d;
+            border-color: #30363d;
+            color: #c9d1d9;
+        }
+        .btn-secondary:hover {
+            background-color: #30363d;
+            border-color: #484f58;
+        }
+        .form-control, .form-select {
+            background-color: #0d1117;
+            border-color: #30363d;
+            color: #c9d1d9;
+        }
+        .form-control:focus, .form-select:focus {
+            background-color: #0d1117;
+            border-color: #58a6ff;
+            color: #c9d1d9;
+            box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.3);
+        }
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            background-color: #0d1117;
+            border-radius: 6px;
+            font-size: 0.875rem;
+        }
+        .status-indicator.active {
+            color: #3fb950;
+        }
+        .status-indicator.active::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background-color: #3fb950;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        .alert {
+            background-color: #0d1117;
+            border: 1px solid;
+            color: inherit;
+        }
+        .alert-success {
+            border-color: #238636;
+            color: #3fb950;
+        }
+        .alert-danger {
+            border-color: #da3633;
+            color: #f85149;
+        }
+        .stats-card {
+            background-color: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .stats-card h6 {
+            color: #8b949e;
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+        }
+        .stats-card .value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #58a6ff;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-user-circle me-2"></i>Face Recognition System
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/"><i class="fas fa-home me-1"></i>Home</a>
+                <a class="nav-link" href="/admin"><i class="fas fa-users-cog me-1"></i>Admin</a>
+                <a class="nav-link" href="/logs"><i class="fas fa-history me-1"></i>Logs</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="main-container">
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="video-section">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h2><i class="fas fa-video me-2"></i>Live Feed</h2>
+                        <div class="status-indicator active">
+                            Camera Active
+                        </div>
+                    </div>
+                    <div class="video-wrapper">
+                        <img id="video-feed" src="{{ url_for('video_feed') }}" alt="Video Feed">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="stats-card">
+                                <h6>FACES DETECTED</h6>
+                                <div class="value" id="faces-detected">0</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stats-card">
+                                <h6>KNOWN FACES</h6>
+                                <div class="value" id="known-faces">0</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stats-card">
+                                <h6>RECOGNITION RATE</h6>
+                                <div class="value" id="recognition-rate">0%</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stats-card">
+                                <h6>ACTIVE NOW</h6>
+                                <div class="value" id="active-faces">0</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Live Detection Feed -->
+                    <div class="mt-3 p-3 bg-dark rounded" style="max-height: 150px; overflow-y: auto;">
+                        <h6 class="mb-2" style="color: #58a6ff;">
+                            <i class="fas fa-bolt me-1"></i>Live Detections
+                        </h6>
+                        <div id="live-detections" style="font-size: 0.875rem;">
+                            <div class="text-muted">Waiting for detections...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="control-section">
+                    <h3 class="mb-4"><i class="fas fa-user-plus me-2"></i>Add New Face</h3>
+                    
+                    <div id="alert-container"></div>
+                    
+                    <form id="capture-form">
+                        <div class="mb-3">
+                            <label for="person-name" class="form-label">Person Name</label>
+                            <input type="text" class="form-control" id="person-name" 
+                                   placeholder="Enter name" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 mb-3">
+                            <i class="fas fa-camera me-2"></i>Capture from Camera
+                        </button>
+                    </form>
+                    
+                    <hr class="my-4">
+                    
+                    <h4 class="mb-3">Or Upload Image</h4>
+                    <form id="upload-form" action="/upload_face" method="POST" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <input type="text" class="form-control mb-2" name="name" 
+                                   placeholder="Enter name" required>
+                            <input type="file" class="form-control" name="face_image" 
+                                   accept="image/*" required>
+                        </div>
+                        <button type="submit" class="btn btn-secondary w-100">
+                            <i class="fas fa-upload me-2"></i>Upload Image
+                        </button>
+                    </form>
+                    
+                    <div class="mt-4 p-3 bg-dark rounded">
+                        <h5 class="mb-2">Instructions:</h5>
+                        <ul class="small mb-0">
+                            <li>Ensure only one face is visible in the camera</li>
+                            <li>Face the camera directly with good lighting</li>
+                            <li>Remove glasses or face coverings if possible</li>
+                            <li>Stay still while capturing</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Handle capture form submission
+        document.getElementById('capture-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const name = document.getElementById('person-name').value.trim();
+            const alertContainer = document.getElementById('alert-container');
+            
+            if (!name) {
+                showAlert('Please enter a name', 'danger');
+                return;
+            }
+            
+            try {
+                // Disable the button to prevent multiple clicks
+                const submitBtn = e.target.querySelector('button[type="submit"]');
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Capturing...';
+                
+                const response = await fetch('/capture', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ name: name })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showAlert(result.message, 'success');
+                    document.getElementById('person-name').value = '';
+                } else {
+                    showAlert(result.error || 'Failed to capture face', 'danger');
+                }
+                
+                // Re-enable the button
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-camera me-2"></i>Capture from Camera';
+                
+            } catch (error) {
+                console.error('Capture error:', error);
+                showAlert('Network error: Could not connect to server. Please check your connection and try again.', 'danger');
+                
+                // Re-enable the button
+                const submitBtn = e.target.querySelector('button[type="submit"]');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-camera me-2"></i>Capture from Camera';
+            }
+        });
+        
+        function showAlert(message, type) {
+            const alertContainer = document.getElementById('alert-container');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type} alert-dismissible fade show`;
+            alert.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            alertContainer.innerHTML = '';
+            alertContainer.appendChild(alert);
+            
+            // Auto-dismiss after 5 seconds
+            setTimeout(() => {
+                alert.remove();
+            }, 5000);
+        }
+        
+        // Update stats periodically
+        async function updateStats() {
+            try {
+                const response = await fetch('/api/stats');
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const stats = await response.json();
+                
+                // Ensure stats are valid numbers
+                const facesDetected = Number(stats.faces_detected) || 0;
+                const knownFaces = Number(stats.known_faces) || 0;
+                const recognitionRate = Number(stats.recognition_rate) || 0;
+                
+                document.getElementById('faces-detected').textContent = facesDetected;
+                document.getElementById('known-faces').textContent = knownFaces;
+                document.getElementById('recognition-rate').textContent = recognitionRate.toFixed(1) + '%';
+            } catch (error) {
+                console.error('Error updating stats:', error);
+                // Set default values on error
+                document.getElementById('faces-detected').textContent = '0';
+                document.getElementById('known-faces').textContent = '0';
+                document.getElementById('recognition-rate').textContent = '0%';
+            }
+        }
+        
+        // Update live detections
+        async function updateLiveDetections() {
+            try {
+                const response = await fetch('/api/recent_detections');
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                const liveDetections = document.getElementById('live-detections');
+                const activeFaces = document.getElementById('active-faces');
+                
+                // Update active faces count
+                activeFaces.textContent = data.active_faces.length;
+                
+                // Update live detections feed
+                if (data.recent_detections.length === 0) {
+                    liveDetections.innerHTML = '<div class="text-muted">No recent detections...</div>';
+                } else {
+                    let html = '';
+                    data.recent_detections.forEach(detection => {
+                        const [name, confidence, timestamp] = detection;
+                        const time = new Date(timestamp).toLocaleTimeString();
+                        const confidencePercent = (confidence * 100).toFixed(1);
+                        
+                        const confidenceClass = confidence > 0.8 ? 'text-success' : 
+                                              confidence > 0.6 ? 'text-warning' : 'text-danger';
+                        
+                        html += `
+                            <div class="d-flex justify-content-between align-items-center mb-1 p-2 rounded" style="background-color: #161b22;">
+                                <span>
+                                    <strong style="color: #58a6ff;">${name}</strong>
+                                    <small class="${confidenceClass}">(${confidencePercent}%)</small>
+                                </span>
+                                <small class="text-muted">${time}</small>
+                            </div>
+                        `;
+                    });
+                    liveDetections.innerHTML = html;
+                }
+                
+                // Show notification for new high-confidence detections
+                if (data.active_faces.length > 0) {
+                    data.active_faces.forEach(face => {
+                        const [name, confidence, count] = face;
+                        if (confidence > 0.8 && !window.lastNotified?.[name]) {
+                            showAlert(`${name} detected with ${(confidence * 100).toFixed(1)}% confidence`, 'success');
+                            window.lastNotified = window.lastNotified || {};
+                            window.lastNotified[name] = Date.now();
+                        }
+                    });
+                }
+                
+                // Clear old notifications
+                if (window.lastNotified) {
+                    const now = Date.now();
+                    Object.keys(window.lastNotified).forEach(name => {
+                        if (now - window.lastNotified[name] > 10000) { // 10 seconds
+                            delete window.lastNotified[name];
+                        }
+                    });
+                }
+                
+            } catch (error) {
+                console.error('Error updating live detections:', error);
+            }
+        }
+        
+        // Update stats and live detections
+        setInterval(updateStats, 5000);
+        setInterval(updateLiveDetections, 2000); // More frequent for live feel
+        updateStats();
+        updateLiveDetections();
+    </script>
+</body>
+</html>

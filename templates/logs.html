@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recognition Logs - Face Recognition System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #0d1117;
+            color: #c9d1d9;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        .navbar {
+            background-color: #161b22;
+            border-bottom: 1px solid #30363d;
+            padding: 1rem 0;
+        }
+        .navbar-brand {
+            color: #58a6ff !important;
+            font-weight: 600;
+            font-size: 1.5rem;
+        }
+        .nav-link {
+            color: #c9d1d9 !important;
+            margin: 0 0.5rem;
+            transition: color 0.2s;
+        }
+        .nav-link:hover {
+            color: #58a6ff !important;
+        }
+        .nav-link.active {
+            color: #58a6ff !important;
+        }
+        .main-container {
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        .page-header {
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #30363d;
+        }
+        .controls-section {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #58a6ff;
+            margin-bottom: 0.5rem;
+        }
+        .stat-label {
+            font-size: 0.875rem;
+            color: #8b949e;
+            text-transform: uppercase;
+        }
+        .logs-container {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .log-entry {
+            display: flex;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #30363d;
+            transition: background-color 0.2s;
+        }
+        .log-entry:hover {
+            background-color: rgba(56, 139, 253, 0.1);
+        }
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+        .log-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #58a6ff, #1f6feb);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            margin-right: 1rem;
+            flex-shrink: 0;
+        }
+        .log-content {
+            flex: 1;
+            min-width: 0;
+        }
+        .log-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #c9d1d9;
+            margin-bottom: 0.25rem;
+        }
+        .log-details {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            font-size: 0.875rem;
+            color: #8b949e;
+        }
+        .confidence-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-weight: 500;
+            font-size: 0.75rem;
+        }
+        .confidence-high {
+            background-color: #238636;
+            color: white;
+        }
+        .confidence-medium {
+            background-color: #9e6a03;
+            color: white;
+        }
+        .confidence-low {
+            background-color: #da3633;
+            color: white;
+        }
+        .time-badge {
+            background-color: #21262d;
+            color: #8b949e;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+        }
+        .form-control, .form-select {
+            background-color: #0d1117;
+            border-color: #30363d;
+            color: #c9d1d9;
+        }
+        .form-control:focus, .form-select:focus {
+            background-color: #0d1117;
+            border-color: #58a6ff;
+            color: #c9d1d9;
+            box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.3);
+        }
+        .btn-secondary {
+            background-color: #21262d;
+            border-color: #30363d;
+            color: #c9d1d9;
+        }
+        .btn-secondary:hover {
+            background-color: #30363d;
+            border-color: #484f58;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 10px;
+        }
+        .empty-state i {
+            font-size: 4rem;
+            color: #30363d;
+            margin-bottom: 1rem;
+        }
+        .empty-state h3 {
+            color: #8b949e;
+            margin-bottom: 1rem;
+        }
+        .empty-state p {
+            color: #6e7681;
+        }
+        .auto-refresh-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            color: #8b949e;
+        }
+        .auto-refresh-indicator.active {
+            color: #3fb950;
+        }
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #3fb950;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.3; }
+            100% { opacity: 1; }
+        }
+        .pagination-info {
+            text-align: center;
+            padding: 1rem;
+            color: #8b949e;
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-user-circle me-2"></i>Face Recognition System
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/"><i class="fas fa-home me-1"></i>Home</a>
+                <a class="nav-link" href="/admin"><i class="fas fa-users-cog me-1"></i>Admin</a>
+                <a class="nav-link active" href="/logs"><i class="fas fa-history me-1"></i>Logs</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="main-container">
+        <div class="page-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1><i class="fas fa-history me-2"></i>Recognition Logs</h1>
+                    <p class="text-muted mb-0">Track face recognition events and analytics</p>
+                </div>
+                <div class="auto-refresh-indicator" id="refreshIndicator">
+                    <div class="pulse-dot"></div>
+                    Auto-refreshing
+                </div>
+            </div>
+        </div>
+
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="stat-value" id="total-logs">{{ logs|length }}</div>
+                <div class="stat-label">Total Logs</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="today-logs">0</div>
+                <div class="stat-label">Today</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="unique-people">0</div>
+                <div class="stat-label">Unique People</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="avg-confidence">0%</div>
+                <div class="stat-label">Avg Confidence</div>
+            </div>
+        </div>
+
+        <div class="controls-section">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Filter by Name</label>
+                    <input type="text" class="form-control" id="nameFilter" placeholder="Enter name...">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Confidence Level</label>
+                    <select class="form-select" id="confidenceFilter">
+                        <option value="">All Levels</option>
+                        <option value="high">High (> 80%)</option>
+                        <option value="medium">Medium (50% - 80%)</option>
+                        <option value="low">Low (< 50%)</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Time Period</label>
+                    <select class="form-select" id="timeFilter">
+                        <option value="">All Time</option>
+                        <option value="hour">Last Hour</option>
+                        <option value="day">Last 24 Hours</option>
+                        <option value="week">Last Week</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Actions</label>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-secondary" onclick="clearFilters()">
+                            <i class="fas fa-undo me-1"></i>Clear
+                        </button>
+                        <button class="btn btn-primary" onclick="exportLogs()">
+                            <i class="fas fa-download me-1"></i>Export
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="logs-container" id="logsContainer">
+            {% if logs %}
+                <div id="logsList">
+                    {% for log in logs %}
+                        <div class="log-entry" 
+                             data-name="{{ log[0]|lower }}" 
+                             data-confidence="{{ log[1] }}" 
+                             data-timestamp="{{ log[2] }}">
+                            <div class="log-avatar">
+                                {{ log[0][0]|upper }}
+                            </div>
+                            <div class="log-content">
+                                <div class="log-name">{{ log[0] }}</div>
+                                <div class="log-details">
+                                    {% if log[1] > 0.8 %}
+                                        <span class="confidence-badge confidence-high">
+                                            <i class="fas fa-check-circle me-1"></i>
+                                            {{ "%.1f"|format(log[1] * 100) }}%
+                                        </span>
+                                    {% elif log[1] > 0.5 %}
+                                        <span class="confidence-badge confidence-medium">
+                                            <i class="fas fa-exclamation-circle me-1"></i>
+                                            {{ "%.1f"|format(log[1] * 100) }}%
+                                        </span>
+                                    {% else %}
+                                        <span class="confidence-badge confidence-low">
+                                            <i class="fas fa-times-circle me-1"></i>
+                                            {{ "%.1f"|format(log[1] * 100) }}%
+                                        </span>
+                                    {% endif %}
+                                    <span class="time-badge">
+                                        <i class="far fa-clock me-1"></i>{{ log[2] }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+                <div class="pagination-info">
+                    Showing {{ logs|length }} entries (most recent first)
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-clipboard-list"></i>
+                    <h3>No Recognition Logs Yet</h3>
+                    <p>Face recognition events will appear here once people are detected by the system.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let allLogs = [];
+        let filteredLogs = [];
+
+        // Initialize logs from server data
+        {% if logs %}
+        allLogs = [
+            {% for log in logs %}
+            {
+                name: "{{ log[0] }}",
+                confidence: {{ log[1] }},
+                timestamp: "{{ log[2] }}",
+                timestampDate: new Date("{{ log[2] }}")
+            }{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ];
+        {% endif %}
+
+        filteredLogs = [...allLogs];
+
+        // Filter functions
+        function applyFilters() {
+            const nameFilter = document.getElementById('nameFilter').value.toLowerCase();
+            const confidenceFilter = document.getElementById('confidenceFilter').value;
+            const timeFilter = document.getElementById('timeFilter').value;
+            
+            filteredLogs = allLogs.filter(log => {
+                // Name filter
+                if (nameFilter && !log.name.toLowerCase().includes(nameFilter)) {
+                    return false;
+                }
+                
+                // Confidence filter
+                if (confidenceFilter) {
+                    if (confidenceFilter === 'high' && log.confidence <= 0.8) return false;
+                    if (confidenceFilter === 'medium' && (log.confidence <= 0.5 || log.confidence > 0.8)) return false;
+                    if (confidenceFilter === 'low' && log.confidence > 0.5) return false;
+                }
+                
+                // Time filter
+                if (timeFilter) {
+                    const now = new Date();
+                    const logTime = log.timestampDate;
+                    const hoursDiff = (now - logTime) / (1000 * 60 * 60);
+                    
+                    if (timeFilter === 'hour' && hoursDiff > 1) return false;
+                    if (timeFilter === 'day' && hoursDiff > 24) return false;
+                    if (timeFilter === 'week' && hoursDiff > 168) return false;
+                }
+                
+                return true;
+            });
+            
+            updateDisplayedLogs();
+            updateStats();
+        }
+
+        function updateDisplayedLogs() {
+            const logsList = document.getElementById('logsList');
+            const logsContainer = document.getElementById('logsContainer');
+            
+            if (filteredLogs.length === 0) {
+                logsContainer.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-search"></i>
+                        <h3>No Logs Found</h3>
+                        <p>Try adjusting your filters to see more results.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '<div id="logsList">';
+            
+            filteredLogs.forEach(log => {
+                const confidencePercent = (log.confidence * 100).toFixed(1);
+                let confidenceClass, confidenceIcon;
+                
+                if (log.confidence > 0.8) {
+                    confidenceClass = 'confidence-high';
+                    confidenceIcon = 'fas fa-check-circle';
+                } else if (log.confidence > 0.5) {
+                    confidenceClass = 'confidence-medium';
+                    confidenceIcon = 'fas fa-exclamation-circle';
+                } else {
+                    confidenceClass = 'confidence-low';
+                    confidenceIcon = 'fas fa-times-circle';
+                }
+                
+                html += `
+                    <div class="log-entry" 
+                         data-name="${log.name.toLowerCase()}" 
+                         data-confidence="${log.confidence}" 
+                         data-timestamp="${log.timestamp}">
+                        <div class="log-avatar">
+                            ${log.name[0].toUpperCase()}
+                        </div>
+                        <div class="log-content">
+                            <div class="log-name">${log.name}</div>
+                            <div class="log-details">
+                                <span class="confidence-badge ${confidenceClass}">
+                                    <i class="${confidenceIcon} me-1"></i>
+                                    ${confidencePercent}%
+                                </span>
+                                <span class="time-badge">
+                                    <i class="far fa-clock me-1"></i>${log.timestamp}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            html += `<div class="pagination-info">Showing ${filteredLogs.length} entries (most recent first)</div>`;
+            
+            logsContainer.innerHTML = html;
+        }
+
+        function updateStats() {
+            const totalLogs = filteredLogs.length;
+            const todayLogs = filteredLogs.filter(log => {
+                const today = new Date();
+                const logDate = log.timestampDate;
+                return logDate.toDateString() === today.toDateString();
+            }).length;
+            
+            const uniquePeople = new Set(filteredLogs.map(log => log.name)).size;
+            const avgConfidence = filteredLogs.length > 0 
+                ? (filteredLogs.reduce((sum, log) => sum + log.confidence, 0) / filteredLogs.length * 100).toFixed(1)
+                : 0;
+            
+            document.getElementById('total-logs').textContent = totalLogs;
+            document.getElementById('today-logs').textContent = todayLogs;
+            document.getElementById('unique-people').textContent = uniquePeople;
+            document.getElementById('avg-confidence').textContent = avgConfidence + '%';
+        }
+
+        function clearFilters() {
+            document.getElementById('nameFilter').value = '';
+            document.getElementById('confidenceFilter').value = '';
+            document.getElementById('timeFilter').value = '';
+            applyFilters();
+        }
+
+        function exportLogs() {
+            const csvContent = "data:text/csv;charset=utf-8," 
+                + "Name,Confidence,Timestamp\n"
+                + filteredLogs.map(log => 
+                    `"${log.name}",${log.confidence},"${log.timestamp}"`
+                ).join("\n");
+            
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `face_recognition_logs_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Add event listeners
+        document.getElementById('nameFilter').addEventListener('input', applyFilters);
+        document.getElementById('confidenceFilter').addEventListener('change', applyFilters);
+        document.getElementById('timeFilter').addEventListener('change', applyFilters);
+
+        // Auto-refresh functionality
+        async function refreshLogs() {
+            try {
+                const response = await fetch('/api/recent_logs');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.logs && data.logs.length > 0) {
+                        // Update logs if new data available
+                        allLogs = data.logs;
+                        applyFilters();
+                    }
+                }
+            } catch (error) {
+                console.error('Error refreshing logs:', error);
+            }
+        }
+
+        // Refresh every 10 seconds
+        setInterval(refreshLogs, 10000);
+
+        // Initial load
+        updateStats();
+    </script>
+</body>
+</html>

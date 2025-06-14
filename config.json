@@ -1,0 +1,35 @@
+{
+    "camera": {
+        "index": 0,
+        "width": 640,
+        "height": 480,
+        "fps": 30
+    },
+    "face_recognition": {
+        "tolerance": 0.6,
+        "model": "hog",
+        "number_of_times_to_upsample": 0,
+        "resize_factor": 0.25,
+        "min_face_size": 80,
+        "max_face_size": 300
+    },
+    "performance": {
+        "process_every_n_frames": 3,
+        "max_faces_per_frame": 5,
+        "jpeg_quality": 80,
+        "log_throttle_seconds": 2,
+        "frame_skip_on_processing": false
+    },
+    "logging": {
+        "level": "INFO",
+        "max_log_entries": 1000
+    },
+    "ui": {
+        "auto_refresh_interval": 5,
+        "max_upload_size_mb": 16
+    },
+    "security": {
+        "enable_auth": false,
+        "session_timeout_minutes": 30
+    }
+}
