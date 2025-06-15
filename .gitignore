@@ -45,18 +45,39 @@ ehthumbs.db
 Thumbs.db
 desktop.ini
 
+# Personal and sensitive files
+face_images/
+database/
+CLAUDE.md
+WINDOWS_SETUP_GUIDE.md
+
 # Project specific
-database/*.db
 *.log
 *.tmp
 temp/
 
-# Don't ignore sample data but ignore large files
-face_images/*.jpg
-face_images/*.jpeg
-face_images/*.png
-!face_images/.gitkeep
+# Test and development files
+test_*.py
+*_test.py
+check_faces.py
+app_simple.py
+app_fixed.py
+app_minimal.py
+test_cv2.py
+
+# Configuration files with sensitive data
+config.json
+
+# Debug files
+*_debug.jpg
+*_full.jpg
 
 # Windows
 *.bat
 run_windows.bat
+
+# IDE workspace files
+*.code-workspace
+
+# Development scripts
+prepare_github.py

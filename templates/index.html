@@ -231,6 +231,13 @@
                     
                     <hr class="my-4">
                     
+                    <!-- Camera Fix Button -->
+                    <button id="restart-camera-btn" class="btn btn-warning w-100 mb-3" onclick="restartCamera()">
+                        <i class="fas fa-sync-alt me-2"></i>Fix Camera (Black Screen)
+                    </button>
+                    
+                    <hr class="my-4">
+                    
                     <h4 class="mb-3">Or Upload Image</h4>
                     <form id="upload-form" action="/upload_face" method="POST" enctype="multipart/form-data">
                         <div class="mb-3">
@@ -295,6 +302,11 @@
                 if (result.success) {
                     showAlert(result.message, 'success');
                     document.getElementById('person-name').value = '';
+                    
+                    // Show captured image if available
+                    if (result.image_path) {
+                        showCapturedImage(result.image_path, name);
+                    }
                 } else {
                     showAlert(result.error || 'Failed to capture face', 'danger');
                 }
@@ -329,6 +341,74 @@
             setTimeout(() => {
                 alert.remove();
             }, 5000);
+        }
+        
+        // Show captured image in a modal or alert
+        function showCapturedImage(imagePath, name) {
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: #1a1a1a;
+                padding: 20px;
+                border-radius: 10px;
+                box-shadow: 0 0 20px rgba(0,0,0,0.8);
+                z-index: 1000;
+                text-align: center;
+            `;
+            
+            modal.innerHTML = `
+                <h4 style="color: #58a6ff; margin-bottom: 10px;">Face Captured Successfully!</h4>
+                <p style="color: #8b949e;">Saved as: ${name}</p>
+                <img src="/${imagePath}" style="max-width: 300px; max-height: 300px; border-radius: 10px; margin: 10px 0;">
+                <br>
+                <button onclick="this.parentElement.remove()" class="btn btn-primary mt-3">Close</button>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Auto-close after 5 seconds
+            setTimeout(() => {
+                modal.remove();
+            }, 5000);
+        }
+        
+        // Restart camera function
+        async function restartCamera() {
+            const btn = document.getElementById('restart-camera-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Restarting Camera...';
+            
+            try {
+                const response = await fetch('/restart_camera', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showAlert('Camera restarted successfully! The video feed should work now.', 'success');
+                    // Reload the video feed
+                    const videoFeed = document.getElementById('video-feed');
+                    const currentSrc = videoFeed.src;
+                    videoFeed.src = '';
+                    setTimeout(() => {
+                        videoFeed.src = currentSrc;
+                    }, 500);
+                } else {
+                    showAlert(result.error || 'Failed to restart camera', 'danger');
+                }
+            } catch (error) {
+                showAlert('Error restarting camera: ' + error.message, 'danger');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-sync-alt me-2"></i>Fix Camera (Black Screen)';
+            }
         }
         
         // Update stats periodically

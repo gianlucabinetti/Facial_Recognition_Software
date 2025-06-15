@@ -47,25 +47,31 @@ class CameraManager:
         self.current_frame = None
         self.frame_lock = threading.Lock()
         self.is_running = False
+        self.last_init_time = 0
+        self.init_cooldown = 2  # seconds between reinit attempts
         self.initialize_camera()
         
     def initialize_camera(self):
         camera_config = config.get('camera', {})
-        # Simple camera initialization without DirectShow
-        self.camera = cv2.VideoCapture(camera_config.get('index', 0))
+        # Simple camera initialization - avoid DirectShow which can cause issues
+        try:
+            self.camera = cv2.VideoCapture(camera_config.get('index', 0))
+            
+            # Check if camera opened successfully
+            if not self.camera.isOpened():
+                logger.error("Failed to open camera at index 0")
+                # Try alternative camera indices
+                for i in range(1, 5):
+                    logger.info(f"Trying camera index {i}")
+                    self.camera = cv2.VideoCapture(i)
+                    if self.camera is not None and self.camera.isOpened():
+                        logger.info(f"Camera opened successfully with index {i}")
+                        break
+        except Exception as e:
+            logger.error(f"Error initializing camera: {e}")
+            self.camera = None
         
-        # Check if camera opened successfully
-        if not self.camera.isOpened():
-            logger.error("Failed to open camera")
-            # Try alternative camera indices
-            for i in range(1, 5):
-                logger.info(f"Trying camera index {i}")
-                self.camera = cv2.VideoCapture(i)
-                if self.camera.isOpened():
-                    logger.info(f"Camera opened successfully with index {i}")
-                    break
-        
-        if self.camera.isOpened():
+        if self.camera is not None and self.camera.isOpened():
             # Optimize for performance with lower resolution
             self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, camera_config.get('width', 640))
             self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, camera_config.get('height', 480))
@@ -75,12 +81,8 @@ class CameraManager:
             self.camera.set(cv2.CAP_PROP_BUFFERSIZE, 1)
             # Don't force MJPEG - let camera use default codec
             
-            # Basic camera settings
-            try:
-                self.camera.set(cv2.CAP_PROP_AUTO_EXPOSURE, 3)    # Full auto exposure
-                self.camera.set(cv2.CAP_PROP_AUTO_WB, 1)          # Auto white balance
-            except:
-                pass  # Not all cameras support these settings
+            # Skip advanced camera settings to avoid conflicts
+            # Most cameras work better with default settings
             
             logger.info("Camera initialized successfully")
         else:
@@ -88,18 +90,48 @@ class CameraManager:
         
     def get_frame(self):
         with self.lock:
+            if self.camera is None or not self.camera.isOpened():
+                # Try to reinitialize camera if enough time has passed
+                current_time = time.time()
+                if current_time - self.last_init_time > self.init_cooldown:
+                    logger.info("Attempting to reinitialize camera...")
+                    self.initialize_camera()
+                    self.last_init_time = current_time
+                else:
+                    return False, None
+            
             if self.camera is None:
                 return False, None
-            ret, frame = self.camera.read()
-            if ret:
-                with self.frame_lock:
-                    self.current_frame = frame.copy()
-            return ret, frame
+                
+            try:
+                ret, frame = self.camera.read()
+                if ret and frame is not None and frame.size > 0:
+                    with self.frame_lock:
+                        self.current_frame = frame.copy()
+                    return ret, frame
+                else:
+                    logger.error("Failed to read valid frame from camera")
+                    # Mark camera as needing reinitialization
+                    if self.camera:
+                        self.camera.release()
+                        self.camera = None
+                    return False, None
+            except Exception as e:
+                logger.error(f"Error reading from camera: {e}")
+                # Release camera on error
+                if self.camera:
+                    self.camera.release()
+                    self.camera = None
+                return False, None
     
     def get_current_frame(self):
         with self.frame_lock:
             if self.current_frame is not None:
-                return True, self.current_frame.copy()
+                try:
+                    return True, self.current_frame.copy()
+                except Exception as e:
+                    logger.error(f"Error copying current frame: {e}")
+                    return False, None
             return False, None
     
     def release(self):
@@ -136,18 +168,40 @@ capture_in_progress = False
 capture_lock = threading.Lock()
 
 def load_known_faces():
+    global known_face_encodings, known_face_names
     face_images_dir = "face_images"
+    if not os.path.exists(face_images_dir):
+        os.makedirs(face_images_dir)
+        return
+    
+    # Clear existing faces to reload
+    known_face_encodings = []
+    known_face_names = []
+        
     for filename in os.listdir(face_images_dir):
         if filename.endswith((".jpg", ".jpeg", ".png")):
+            # Skip debug and full frame images
+            if "_debug" in filename or "_full" in filename:
+                continue
+                
             path = os.path.join(face_images_dir, filename)
-            name = os.path.splitext(filename)[0]
-            image = face_recognition.load_image_file(path)
-            encoding = face_recognition.face_encodings(image)
-            if encoding:
-                known_face_encodings.append(encoding[0])
-                known_face_names.append(name)
-            else:
-                print(f"No face found in {filename}")
+            # Clean up the name - remove timestamps and normalize
+            base_name = os.path.splitext(filename)[0]
+            import re
+            name = re.sub(r'_\d{8}_\d{6}$', '', base_name)
+            name = name.replace('_', ' ')  # Replace underscores with spaces
+            
+            try:
+                image = face_recognition.load_image_file(path)
+                encoding = face_recognition.face_encodings(image)
+                if encoding:
+                    known_face_encodings.append(encoding[0])
+                    known_face_names.append(name)
+                    logger.info(f"Loaded face: {name}")
+                else:
+                    logger.warning(f"No face found in {filename} - consider deleting this file")
+            except Exception as e:
+                logger.error(f"Error loading {filename}: {e}")
 
 def init_database():
     """Initialize the SQLite database"""
@@ -203,99 +257,67 @@ def generate_frames():
             if should_process:
                 try:
                     # Resize frame for faster face recognition processing
-                    resize_factor = face_config.get('resize_factor', 0.25)
+                    resize_factor = 0.25  # Fixed resize factor
                     small_frame = cv2.resize(frame, (0, 0), fx=resize_factor, fy=resize_factor)
                     rgb_small_frame = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)
                     
-                    # Find faces in the frame with improved parameters
-                    model = face_config.get('model', 'hog')
-                    upsample = face_config.get('number_of_times_to_upsample', 0)
-                    face_locations = face_recognition.face_locations(
-                        rgb_small_frame, 
-                        number_of_times_to_upsample=upsample, 
-                        model=model
-                    )
+                    # Find faces with simple parameters
+                    face_locations = face_recognition.face_locations(rgb_small_frame, model='hog')
                     
-                    # Filter faces by size to avoid false positives
-                    min_face_size = face_config.get('min_face_size', 80)
-                    max_face_size = face_config.get('max_face_size', 300)
-                    scale_factor = int(1 / resize_factor)
+                    # Debug: log face detection
+                    if frame_count % 30 == 0:  # Log every 30 frames
+                        logger.info(f"Face detection: found {len(face_locations)} faces, known faces: {len(known_face_encodings)}")
                     
-                    filtered_face_locations = []
-                    for (top, right, bottom, left) in face_locations:
-                        # Calculate face size in original frame
-                        face_width = (right - left) * scale_factor
-                        face_height = (bottom - top) * scale_factor
-                        face_size = min(face_width, face_height)
-                        
-                        # Only keep faces within reasonable size range
-                        if min_face_size <= face_size <= max_face_size:
-                            # Additional check: ensure face is not too close to edges
-                            frame_height, frame_width = small_frame.shape[:2]
-                            margin = 10
-                            if (left > margin and top > margin and 
-                                right < frame_width - margin and bottom < frame_height - margin):
-                                filtered_face_locations.append((top, right, bottom, left))
-                    
-                    face_locations = filtered_face_locations
-                    
-                    # Limit to maximum faces for performance
-                    if len(face_locations) > max_faces_per_frame:
-                        # Sort by face size (larger faces first) and take the biggest ones
-                        face_locations_with_size = []
-                        for (top, right, bottom, left) in face_locations:
-                            size = (right - left) * (bottom - top)
-                            face_locations_with_size.append(((top, right, bottom, left), size))
-                        
-                        face_locations_with_size.sort(key=lambda x: x[1], reverse=True)
-                        face_locations = [loc for loc, size in face_locations_with_size[:max_faces_per_frame]]
+                    # Simple face filtering - just limit number
+                    if len(face_locations) > 3:  # Max 3 faces for performance
+                        face_locations = face_locations[:3]
                     
                     # Clear stored faces and process new ones
                     stored_faces = []
                     
-                    if face_locations and known_face_encodings:
-                        face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
+                    if face_locations:
+                        if known_face_encodings:
+                            face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
 
-                        # Scale back up face locations
-                        scale_factor = int(1 / resize_factor)
-                        face_locations = [(top*scale_factor, right*scale_factor, bottom*scale_factor, left*scale_factor) 
-                                        for (top, right, bottom, left) in face_locations]
+                            # Scale back up face locations
+                            scale_factor = int(1 / resize_factor)
+                            face_locations = [(top*scale_factor, right*scale_factor, bottom*scale_factor, left*scale_factor) 
+                                            for (top, right, bottom, left) in face_locations]
 
-                        # Loop through each face in this frame
-                        for (top, right, bottom, left), face_encoding in zip(face_locations, face_encodings):
-                            tolerance = face_config.get('tolerance', 0.6)
-                            matches = face_recognition.compare_faces(known_face_encodings, face_encoding, tolerance=tolerance)
-                            name = "Unknown"
-                            confidence = 0.0
+                            # Loop through each face in this frame
+                            for (top, right, bottom, left), face_encoding in zip(face_locations, face_encodings):
+                                matches = face_recognition.compare_faces(known_face_encodings, face_encoding, tolerance=0.6)
+                                name = "Unknown"
+                                confidence = 0.0
 
-                            if matches and any(matches):
-                                face_distances = face_recognition.face_distance(known_face_encodings, face_encoding)
-                                best_match_index = np.argmin(face_distances)
-                                if matches[best_match_index]:
-                                    name = known_face_names[best_match_index]
-                                    confidence = 1 - face_distances[best_match_index]
-                                    
-                                    # Only log high-confidence recognitions to avoid spam
-                                    if confidence > 0.65:
-                                        log_recognition_throttled(name, confidence)
+                                if matches and any(matches):
+                                    face_distances = face_recognition.face_distance(known_face_encodings, face_encoding)
+                                    best_match_index = np.argmin(face_distances)
+                                    if matches[best_match_index]:
+                                        name = known_face_names[best_match_index]
+                                        confidence = 1 - face_distances[best_match_index]
+                                        
+                                        # Only log high-confidence recognitions
+                                        if confidence > 0.65:
+                                            log_recognition_throttled(name, confidence)
 
-                            # Store face info for drawing
-                            stored_faces.append({
-                                'location': (top, right, bottom, left),
-                                'name': name,
-                                'confidence': confidence
-                            })
-                    else:
-                        # Just detect faces without recognition if no known faces
-                        scale_factor = int(1 / resize_factor)
-                        for (top, right, bottom, left) in face_locations:
-                            scaled_location = (top*scale_factor, right*scale_factor, 
-                                             bottom*scale_factor, left*scale_factor)
-                            stored_faces.append({
-                                'location': scaled_location,
-                                'name': 'Unknown',
-                                'confidence': 0.0
-                            })
+                                # Store face info for drawing
+                                stored_faces.append({
+                                    'location': (top, right, bottom, left),
+                                    'name': name,
+                                    'confidence': confidence
+                                })
+                        else:
+                            # Just detect faces without recognition if no known faces
+                            scale_factor = int(1 / resize_factor)
+                            for (top, right, bottom, left) in face_locations:
+                                scaled_location = (top*scale_factor, right*scale_factor, 
+                                               bottom*scale_factor, left*scale_factor)
+                                stored_faces.append({
+                                    'location': scaled_location,
+                                    'name': 'Unknown',
+                                    'confidence': 0.0
+                                })
                         
                 except Exception as face_error:
                     logger.error(f"Error in face recognition processing: {str(face_error)}")
@@ -394,6 +416,21 @@ def load_faces_from_db():
         logger.info(f"Loaded {len(known_face_names)} faces from database")
     except Exception as e:
         logger.error(f"Error loading faces from database: {str(e)}")
+    
+    # Clean up known faces list to remove duplicates
+    unique_names = set()
+    clean_encodings = []
+    clean_names = []
+    
+    for encoding, name in zip(known_face_encodings, known_face_names):
+        if name not in unique_names:
+            unique_names.add(name)
+            clean_encodings.append(encoding)
+            clean_names.append(name)
+    
+    known_face_encodings[:] = clean_encodings
+    known_face_names[:] = clean_names
+    logger.info(f"Total unique faces loaded: {len(known_face_names)}")
 
 @app.route('/')
 def index():
@@ -573,11 +610,18 @@ def get_recent_logs():
 def serve_static_files(filename):
     """Serve face images and other static files"""
     try:
+        logger.info(f"Requesting file: {filename}")
         # Serve from face_images directory
         if filename.startswith('face_images/'):
-            return send_from_directory('.', filename)
+            file_path = os.path.join('.', filename)
+            if os.path.exists(file_path):
+                logger.info(f"Serving file: {file_path}")
+                return send_from_directory('.', filename)
+            else:
+                logger.error(f"File not found: {file_path}")
         return send_from_directory('.', filename)
-    except:
+    except Exception as e:
+        logger.error(f"Error serving file {filename}: {e}")
         return "File not found", 404
 
 @app.route('/api/admin_stats')
@@ -749,37 +793,19 @@ def capture_face():
         if not safe_name:
             return jsonify({'success': False, 'error': 'Invalid name format'}), 400
         
-        # Safely capture frame with multiple attempts and error handling
-        frame = None
-        success = False
+        # Simple frame capture to avoid camera conflicts
+        logger.info("Attempting frame capture for face registration")
         
-        # Try current frame first (fastest)
-        try:
-            success, frame = camera_manager.get_current_frame()
-            if success and frame is not None:
-                logger.info("Using current frame for capture")
-        except Exception as e:
-            logger.warning(f"Failed to get current frame: {e}")
-            success = False
-        
-        # Fallback: try to get fresh frames
+        # Try current frame first (from video stream)
+        success, frame = camera_manager.get_current_frame()
         if not success or frame is None:
-            logger.info("Attempting fresh frame capture")
-            for attempt in range(10):  # More attempts
-                try:
-                    success, frame = camera_manager.get_frame()
-                    if success and frame is not None and frame.size > 0:
-                        logger.info(f"Got fresh frame on attempt {attempt + 1}")
-                        break
-                except Exception as e:
-                    logger.warning(f"Frame capture attempt {attempt + 1} failed: {e}")
-                time.sleep(0.2)  # Longer wait between attempts
+            # If no current frame, get a fresh one
+            success, frame = camera_manager.get_frame()
         
-        # Final validation
         if not success or frame is None:
-            logger.error("All frame capture attempts failed")
-            return jsonify({'success': False, 'error': 'Unable to capture frame. Camera may be busy or disconnected.'}), 500
+            return jsonify({'success': False, 'error': 'Failed to capture frame from camera'}), 500
         
+        # Basic frame validation
         if frame.size == 0:
             logger.error("Captured frame is empty")
             return jsonify({'success': False, 'error': 'Captured frame is empty'}), 500
@@ -837,15 +863,39 @@ def capture_face():
         # Use forward slashes for path compatibility
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename).replace('\\', '/')
         
-        # Crop face from frame with some padding
+        # Crop face from frame with more padding for better visibility
         top, right, bottom, left = face_locations[0]
-        padding = 20
+        # Increase padding for better face capture
+        padding = 50
         top = max(0, top - padding)
         bottom = min(frame_copy.shape[0], bottom + padding)
         left = max(0, left - padding)
         right = min(frame_copy.shape[1], right + padding)
         
         face_image = frame_copy[top:bottom, left:right]
+        
+        # Validate the cropped face image
+        if face_image.size == 0 or face_image.shape[0] < 20 or face_image.shape[1] < 20:
+            logger.error(f"Face crop too small: {face_image.shape}")
+            return jsonify({'success': False, 'error': 'Face crop too small. Please get closer to camera.'}), 500
+        
+        # Verify face is still detectable in cropped image
+        rgb_face = cv2.cvtColor(face_image, cv2.COLOR_BGR2RGB)
+        face_check = face_recognition.face_locations(rgb_face)
+        if not face_check:
+            logger.warning("Face not detectable in cropped image, using larger padding")
+            # Try with larger padding
+            padding = 100
+            top = max(0, face_locations[0][0] - padding)
+            bottom = min(frame_copy.shape[0], face_locations[0][2] + padding)
+            left = max(0, face_locations[0][3] - padding)
+            right = min(frame_copy.shape[1], face_locations[0][1] + padding)
+            face_image = frame_copy[top:bottom, left:right]
+        
+        # Draw rectangle on full frame for debugging
+        debug_frame = frame_copy.copy()
+        cv2.rectangle(debug_frame, (left, top), (right, bottom), (0, 255, 0), 2)
+        cv2.putText(debug_frame, name, (left, top - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
         
         # Save image with error handling and debugging
         try:
@@ -872,6 +922,12 @@ def capture_face():
                 return jsonify({'success': False, 'error': 'Empty image file created'}), 500
                 
             logger.info(f"Successfully saved face image: {filepath} ({file_size} bytes)")
+            
+            # Save debug frame with bounding box
+            debug_filename = f"{safe_name}_{timestamp}_debug.jpg"
+            debug_path = os.path.join(app.config['UPLOAD_FOLDER'], debug_filename)
+            cv2.imwrite(debug_path, debug_frame)
+            logger.info(f"Saved debug frame to: {debug_path}")
             
         except Exception as save_error:
             logger.error(f"Image save error: {save_error}, filepath: {filepath}")
@@ -938,7 +994,24 @@ def capture_face():
             # This is not critical, face is saved to database
         
         logger.info(f"Successfully completed face capture for {name}")
-        return jsonify({'success': True, 'message': f'Face captured and saved for {name}!'})
+        
+        # Reload faces to include the new one
+        load_known_faces()
+        
+        # Return the image path so it can be displayed
+        response = jsonify({
+            'success': True, 
+            'message': f'Face captured and saved for {name}!',
+            'image_path': filepath,
+            'face_id': conn.lastrowid if conn else None
+        })
+        
+        # Add CORS headers to prevent network errors
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE')
+        
+        return response
         
     except Exception as e:
         logger.error(f"Unexpected error in capture_face: {str(e)}")
@@ -949,6 +1022,39 @@ def capture_face():
         with capture_lock:
             capture_in_progress = False
             logger.info("Capture lock released")
+
+@app.route('/test_image/<filename>')
+def test_image(filename):
+    """Test route to display captured images"""
+    try:
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        if os.path.exists(filepath):
+            return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+        else:
+            return f"File not found: {filepath}", 404
+    except Exception as e:
+        return f"Error: {str(e)}", 500
+
+@app.route('/restart_camera', methods=['POST'])
+def restart_camera():
+    """Restart camera connection to fix black screen issues"""
+    try:
+        global camera_manager
+        logger.info("Restarting camera...")
+        camera_manager.release()
+        time.sleep(1)
+        camera_manager = CameraManager()
+        time.sleep(0.5)
+        
+        # Test if camera works
+        success, frame = camera_manager.get_frame()
+        if success and frame is not None:
+            return jsonify({'success': True, 'message': 'Camera restarted successfully'})
+        else:
+            return jsonify({'success': False, 'error': 'Camera restart failed'}), 500
+    except Exception as e:
+        logger.error(f"Error restarting camera: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/delete_face/<int:face_id>', methods=['POST'])
 def delete_face(face_id):
@@ -1051,7 +1157,9 @@ def upload_face():
 if __name__ == '__main__':
     try:
         init_database()
+        logger.info("Loading known faces from files...")
         load_known_faces()
+        logger.info("Loading faces from database...")
         load_faces_from_db()
         print("\n" + "="*50)
         print("🎥 Face Recognition System Started!")

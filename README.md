@@ -1,22 +1,21 @@
 # Facial Recognition System
 
-A modern, real-time facial recognition system built with Flask, OpenCV, and face_recognition library.
+A real-time facial recognition system built with Flask and OpenCV that can detect, recognize, and manage faces through a web interface.
 
-## 🌟 Features
+## Features
 
-- **Real-time Face Detection**: Live video feed with face recognition
-- **Face Registration**: Capture faces directly from camera or upload images
-- **Modern UI**: Dark-themed, responsive interface
-- **Admin Panel**: Comprehensive face management with statistics
-- **Logging System**: Detailed recognition logs with filtering and export
-- **Performance Optimized**: Efficient processing for smooth real-time operation
+- 🎥 **Real-time face detection** and recognition via webcam
+- 👤 **Face registration** through web interface capture
+- 📊 **Live statistics** showing detection rates and active faces
+- 🔧 **Admin panel** for managing registered faces
+- 📝 **Recognition logging** with confidence scores
+- 🌐 **Web-based interface** accessible from any browser
 
-## 🚀 Quick Start
+## Prerequisites
 
-### Prerequisites
-- Python 3.8+
-- Webcam/Camera
-- Windows (recommended) or Linux
+- Python 3.7+
+- Webcam or camera device
+- Modern web browser
 
 ### Installation
 
