@@ -16,7 +16,7 @@ A real-time facial recognition system built with Flask and OpenCV that can detec
 - Python 3.7+
 - Webcam or camera device
 - Modern web browser
-d
+
 ### Installation
 
 1. **Clone the repository**
