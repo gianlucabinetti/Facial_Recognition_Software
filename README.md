@@ -4,12 +4,12 @@ A real-time facial recognition system built with Flask and OpenCV that can detec
 
 ## Features
 
-- 🎥 **Real-time face detection** and recognition via webcam
-- 👤 **Face registration** through web interface capture
-- 📊 **Live statistics** showing detection rates and active faces
-- 🔧 **Admin panel** for managing registered faces
-- 📝 **Recognition logging** with confidence scores
-- 🌐 **Web-based interface** accessible from any browser
+-  **Real-time face detection** and recognition via webcam
+-  **Face registration** through web interface capture
+-  **Live statistics** showing detection rates and active faces
+-  **Admin panel** for managing registered faces
+-  **Recognition logging** with confidence scores
+-  **Web-based interface** accessible from any browser
 
 ## Prerequisites
 
@@ -49,14 +49,14 @@ A real-time facial recognition system built with Flask and OpenCV that can detec
 5. **Open your browser**
    Navigate to `http://localhost:5000`
 
-## 🖥️ System Requirements
+##  System Requirements
 
 - **RAM**: 4GB minimum, 8GB recommended
 - **CPU**: Multi-core processor recommended
 - **Camera**: USB webcam or built-in camera
 - **OS**: Windows 10/11 (best performance), Linux, macOS
 
-## 📁 Project Structure
+##  Project Structure
 
 ```
 Facial_Recognition_Software/
@@ -72,7 +72,7 @@ Facial_Recognition_Software/
 └── static/              # CSS, JS, images
 ```
 
-## ⚙️ Configuration
+##  Configuration
 
 Edit `config.json` to customize:
 
@@ -81,7 +81,7 @@ Edit `config.json` to customize:
 - **Face recognition**: Tolerance, model type
 - **Logging**: Level, retention
 
-## 🎯 Usage
+##  Usage
 
 ### Adding Faces
 1. Enter a name in the "Add New Face" section
@@ -98,7 +98,7 @@ Edit `config.json` to customize:
 2. Filter by name, confidence, or time period
 3. Export data to CSV
 
-## 🔧 Troubleshooting
+##  Troubleshooting
 
 ### Camera Issues
 - **Black screen**: Run on native Windows (not WSL)
@@ -115,7 +115,7 @@ Edit `config.json` to customize:
 - Position face clearly in camera
 - Check minimum/maximum face size settings
 
-## 🛠️ Technical Details
+##  Technical Details
 
 ### Performance Optimizations
 - Frame processing throttling
@@ -129,7 +129,7 @@ Edit `config.json` to customize:
 - File path validation
 - Thread-safe operations
 
-## 📊 API Endpoints
+##  API Endpoints
 
 - `GET /` - Main dashboard
 - `GET /admin` - Face management
@@ -137,7 +137,7 @@ Edit `config.json` to customize:
 - `POST /capture` - Capture face from camera
 - `GET /api/stats` - Real-time statistics
 
-## 🤝 Contributing
+##  Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -145,18 +145,18 @@ Edit `config.json` to customize:
 4. Test thoroughly
 5. Submit a pull request
 
-## 📄 License
+##  License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+##  Acknowledgments
 
 - [face_recognition](https://github.com/ageitgey/face_recognition) library
 - [OpenCV](https://opencv.org/) for computer vision
 - [Flask](https://flask.palletsprojects.com/) web framework
 - [Bootstrap](https://getbootstrap.com/) for UI components
 
-## 📞 Support
+##  Support
 
 If you encounter issues:
 1. Check the troubleshooting section
